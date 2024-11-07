@@ -140,6 +140,9 @@ install_kubernetes() {
 
 setup_kubeextraargs() {
 
+    # Disable swap
+    sudo swapoff -a
+
     # Install jq, a command-line JSON processor
     sudo apt-get install -y jq
 
