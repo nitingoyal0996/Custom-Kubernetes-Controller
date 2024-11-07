@@ -128,7 +128,7 @@ install_kubernetes() {
     chmod 644 /etc/apt/sources.list.d/kubernetes.list
 
     apt-get update -y
-    apt-get install -y kubelet kubeadm kubectl
+    apt-get install -y kubelet=1.30.6-1.1 kubeadm kubectl
     apt-mark hold kubelet kubeadm kubectl
 
     # Verify installation
@@ -138,11 +138,34 @@ install_kubernetes() {
     fi
 }
 
+setup_kubeextraargs() {
+
+    # Install jq, a command-line JSON processor
+    sudo apt-get install -y jq
+
+    # Configure kubelet
+    local_ip="$(ip --json addr show eno1 | jq -r '.[0].addr_info[] | select(.family == "inet") | .local')"
+    if [ -z "$local_ip" ]; then
+        echo "Error: Could not determine node IP address"
+        exit 1
+    fi
+
+    # Set kubelet node IP
+    cat > /etc/default/kubelet << EOF
+KUBELET_EXTRA_ARGS=--node-ip=$local_ip
+EOF
+
+    NODENAME=$(hostname -s)
+    POD_CIDR="192.168.0.0/16"  # Calico default
+
+}
+
 # Main execution
 echo "Starting Kubernetes installation..."
 check_prerequisites
 configure_system
 install_crio
 install_kubernetes
+setup_kubeextraargs
 
 echo "Kubernetes installation completed successfully!"
