@@ -15,13 +15,13 @@ class StressRunner:
     def write(self, file_name, data):
         with open(file_name, mode='w', newline='') as file:
             writer = csv.writer(file)
+            writer.writerow(['Max Pods', 'CPU Utilization'])
             for max_pods, cpu_util in data:
-                writer.writerow(['Max Pods', 'CPU Utilization'])
                 writer.writerow([max_pods, cpu_util])
         
     def run_test(self, StressClass, pods: List[int], duration: int = 300, interval: int = 5, node_name='all') -> Dict:
         results = []
-        for pod_count in range(2, pods + 1):
+        for pod_count in range(1, pods + 1):
             print(f"\nRunning stress test with {pod_count} pods...")
             stressor = StressClass(
                 pods=pod_count,
@@ -30,13 +30,7 @@ class StressRunner:
                 node_name=node_name
             )
             cpu_utils = stressor.run()
-            if str.lower(stressor.type) == 'cluster':
-                # take average of all the node cpu utilization
-                cpu_utils = [sum(cpu_percent) / len(cpu_percent) for cpu_percent in cpu_utils.values()]
-            else:
-                cpu_utils = cpu_utils
-            # append the average cpu utilization to the results
-            cpu_utils = np.array(cpu_utils)
+            cpu_utils = np.array([sum(cpu_percent) / len(cpu_percent) for cpu_percent in cpu_utils.values()])
             results.append((pod_count, cpu_utils.mean()))
         self.write(f'{self.output_dir}/{stressor.type}_data.csv', results)
         print(f"\nAll results saved in: data/")
@@ -49,9 +43,9 @@ def main():
     
     runner = StressRunner(output_dir='data')
 
-    MAX_PODS = 5
+    MAX_PODS = 2
     POLL_INTERVAL = 5
-    TIME = 30
+    TIME = 10
     
     if args.type == 'cluster':
         print("\nStarting Ubuntu stress tests...")
