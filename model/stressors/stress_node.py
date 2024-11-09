@@ -4,7 +4,7 @@ from kubernetes import client, config
 from kubernetes.client import CustomObjectsApi
 
 class NodeStressor:
-    def __init__(self, pods, duration, node_name, poll_every=5, image="polinux/stress-ng", namespace="default"):
+    def __init__(self, pods, duration, node_name, poll_every=5, image="polinux/stress-ng", namespace="default", stressors=2):
         self.duration = duration
         self.pods = pods
         self.type = 'Node'
@@ -13,17 +13,18 @@ class NodeStressor:
         self.node_name = node_name.split('.')[0]
         self.worker_number = self.node_name.replace('node', '')
         self.node_cluster_name = node_name
-        print(f"Node name: {self.node_name}, Worker number: {self.worker_number}")
         self.poll_interval = poll_every
+        self.cpu_stressor = stressors
         
         # Load Kubernetes configuration
         config.load_kube_config()
         self.apps_v1_api = client.AppsV1Api()
         self.core_v1_api = client.CoreV1Api()
         self.custom_api = CustomObjectsApi()
+        
+        print(f"Node name: {self.node_name}, Worker number: {self.worker_number} started...")
 
-    def create_stress_ng_deployment(self, cpu_workers=2):
-        print(f"worker{self.worker_number}")
+    def create_stress_ng_deployment(self):
         deployment = client.V1Deployment(
             api_version="apps/v1",
             kind="Deployment",
@@ -46,9 +47,9 @@ class NodeStressor:
                                 name="stress-ng",
                                 image=self.image,
                                 args=[
-                                    "--cpu", str(cpu_workers),
+                                    "--cpu", str(self.cpu_stressor),
                                     "--io", "2",
-                                    "--vm", "8",
+                                    "--vm", "1",
                                     "--vm-bytes", "4G",
                                     "--timeout", str(self.duration + 30),  # Add buffer time
                                     "--metrics-brief"
@@ -136,7 +137,6 @@ class NodeStressor:
         return False
 
     def get_cpu_utilization(self):
-        print(f"Collecting CPU utilization for {self.node_name}...")
         try:
             metrics = self.custom_api.list_cluster_custom_object(
                 group="metrics.k8s.io",
@@ -148,11 +148,10 @@ class NodeStressor:
                 if item['metadata']['name'] == self.node_cluster_name:
                     cpu_usage_nano = int(item['usage']['cpu'].rstrip('n'))
                     node = self.core_v1_api.read_node(self.node_cluster_name)
-                    cpu_capacity = int(node.status.capacity['cpu']) * 1000000000  # Convert to nanocores
-                    print('Node\'s CPU capacity: {cpu_capacity}')
+                    cpu = int(node.status.capacity['cpu'])
+                    cpu_capacity = cpu * 1000000000  # Convert to nanocores
                     cpu_percent = (cpu_usage_nano / cpu_capacity) * 100
-                    
-                    print(f"Node: {self.node_name}, CPU Utilization: {round(cpu_percent, 2)}%")
+                    print(f"CPU Utilization: {round(cpu_percent, 2)}%")
                     return round(cpu_percent, 2)
             
             print(f"No metrics found for node {self.node_cluster_name}")
@@ -218,16 +217,15 @@ class NodeStressor:
 
     def run(self):
         try:
-            print(f"\nStarting experiment with {self.pods} pods on node {self.node_cluster_name}")
+            print(f"Starting experiment with {self.pods} pods on node {self.node_cluster_name}")
             self.deploy_stress_ng_pods()
             if not self.wait_for_pods_ready():
                 print("Failed to start pods, cleaning up...")
                 return []
             cpu_utils = self.monitor()
             return cpu_utils
-        except Exception as e:
+        except:
             print("An error occurred during the experiment")
-            raise e
         finally:
             self.cleanup()
         
@@ -245,5 +243,5 @@ class NodeStressor:
             except Exception as e:
                 print(f"Error during monitoring: {e}")
                 
-        print(f"Test completed. Recorded {len(cpu_utils)} data points.")
+        print(f"Test completed.")
         return cpu_utils

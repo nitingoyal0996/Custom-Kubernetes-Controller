@@ -4,21 +4,22 @@ from kubernetes import client, config
 from kubernetes.client import CustomObjectsApi
 
 class ClusterStressor:
-    def __init__(self, pods, duration=300, poll_every=5, image="polinux/stress-ng", namespace="default", node_name='all'):
+    def __init__(self, pods, duration=300, poll_every=5, image="polinux/stress-ng", namespace="default", node_name='all', stressors=2):
         self.duration = duration
         self.pods = pods
         self.type = 'Cluster'
         self.image = image
         self.namespace = namespace
         self.poll_interval = poll_every
-        
-        # Load Kubernetes configuration
+        self.cpu_stressors = stressors
+
         config.load_kube_config()
         self.apps_v1_api = client.AppsV1Api()
         self.core_v1_api = client.CoreV1Api()
         self.metric_api = CustomObjectsApi()
+        print(f"Cluster stress test started...")
 
-    def create_stress_ng_deployment(self, cpu_workers=2):
+    def create_stress_ng_deployment(self):
         deployment = client.V1Deployment(
             api_version="apps/v1",
             kind="Deployment",
@@ -41,11 +42,11 @@ class ClusterStressor:
                                 name="stress-ng",
                                 image=self.image,
                                 args=[
-                                    "--cpu", str(cpu_workers),
+                                    "--cpu", str(self.cpu_stressors),
                                     "--io", "2",
                                     "--vm", "8",
                                     "--vm-bytes", "4G",
-                                    "--timeout", str(self.duration),  # Add buffer time
+                                    "--timeout", str(self.duration),
                                     "--metrics-brief"
                                 ]
                             )
@@ -64,7 +65,6 @@ class ClusterStressor:
             namespace=self.namespace
         )
 
-        # Scale to desired number of pods
         self.apps_v1_api.patch_namespaced_deployment_scale(
             name="stress-ng",
             namespace=self.namespace,
@@ -73,7 +73,7 @@ class ClusterStressor:
 
     def wait_for_pods_ready(self):
         print("Waiting for pods to be ready...")
-        max_wait = 60  # Maximum wait time in seconds
+        max_wait = 60
         start_time = time.time()
         
         while time.time() - start_time < max_wait:
@@ -96,7 +96,6 @@ class ClusterStressor:
     def cleanup(self):
         print("Cleaning up resources...")
         try:
-            # Delete deployment first
             try:
                 self.apps_v1_api.delete_namespaced_deployment(
                     name="stress-ng",
@@ -109,7 +108,6 @@ class ClusterStressor:
                 if e.status != 404:  # Ignore if deployment doesn't exist
                     raise
 
-            # Wait for deployment to be fully deleted
             while True:
                 try:
                     self.apps_v1_api.read_namespaced_deployment(
@@ -148,32 +146,28 @@ class ClusterStressor:
         except Exception as e:
             print(f"Error during cleanup: {str(e)}")
             raise
+
     def get_cpu_utilization(self):
-        print("Collecting CPU utilization...")
         try:
-            # Get metrics from the metrics.k8s.io API
             metrics = self.metric_api.list_cluster_custom_object(
                 group="metrics.k8s.io",
                 version="v1beta1",
                 plural="nodes"
             )
-            
             cpu_usage = []
+            curr_usage = 0
             for item in metrics['items']:
                 node_name = item['metadata']['name']
-                
-                # Get CPU usage in nanocores
                 cpu_usage_nano = int(item['usage']['cpu'].rstrip('n'))
-                
-                # Get node's CPU capacity
                 node = self.core_v1_api.read_node(node_name)
                 cpu_capacity = int(node.status.capacity['cpu']) * 1000000000  # Convert to nanocores
-                
-                # Calculate CPU utilization percentage
                 cpu_percent = (cpu_usage_nano / cpu_capacity) * 100
-                
                 cpu_usage.append((node_name, round(cpu_percent, 2)))
-                print(f"Node: {node_name}, CPU Utilization: {round(cpu_percent, 2)}%")
+                curr_usage += cpu_percent
+
+            # average cluster CPU utilization
+            avg_usage = curr_usage / len(cpu_usage)
+            print(f"Average CPU Utilization: {round(avg_usage, 2)}%")
                 
             return cpu_usage
         except Exception as e:
@@ -182,11 +176,11 @@ class ClusterStressor:
 
     def run(self):
         try:
-            print(f"\nStarting experiment with {self.pods} pods")
+            print(f"Starting experiment with {self.pods} pods")
             self.deploy_stress_ng_pods()
             self.wait_for_pods_ready()
             cpu_utils = self.monitor()
-            print(f"Test completed. Recorded {len(cpu_utils)} data points.")
+            print(f"Test completed")
             return cpu_utils
         finally:
             self.cleanup()
@@ -205,5 +199,4 @@ class ClusterStressor:
             except Exception as e:
                 print(f"Error during monitoring: {e}")
             time.sleep(self.poll_interval)
-        print(cpu_utils)
         return cpu_utils
