@@ -39,22 +39,21 @@ def main():
     parser = argparse.ArgumentParser(description='Run stress tests for the cluster or just a node')
     parser.add_argument('--type', choices=['cluster', 'node'], 
                        default='cluster', help='Type of system to stress')
+    parser.add_argument('--poll-interval', type=int, default=5, help='Interval to poll CPU utilization')
+    parser.add_argument('--time', type=int, default=60, help='Duration of the stress test (Seconds)')
+    parser.add_argument('--max-pods', type=int, default=2, help='Maximum number of pods to stress')
     args = parser.parse_args()
     
     runner = StressRunner(output_dir='data')
-
-    MAX_PODS = 2
-    POLL_INTERVAL = 5
-    TIME = 10
     
     if args.type == 'cluster':
         print("\nStarting Ubuntu stress tests...")
-        runner.run_test(ClusterStressor, MAX_PODS, TIME, POLL_INTERVAL)
+        runner.run_test(ClusterStressor, args.max_po, args.time, args.poll_interval)
         print("\nUbuntu tests completed!")
         
     if args.type == 'node':
         print("\nStarting Docker stress tests...")
-        runner.run_test(NodeStressor, MAX_PODS, TIME, POLL_INTERVAL, node_name='node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us')
+        runner.run_test(NodeStressor, args.max_po, args.time, args.poll_interval, node_name='node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us')
         print("\nDocker tests completed!")
 
 if __name__ == "__main__":
