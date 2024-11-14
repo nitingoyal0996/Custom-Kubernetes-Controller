@@ -40,8 +40,7 @@ class StressRunner:
 
 def main():
     parser = argparse.ArgumentParser(description='Run stress tests for the cluster or just a node')
-    parser.add_argument('--type', choices=['cluster', 'node'], 
-                       default='cluster', help='Type of system to stress')
+    parser.add_argument('--type', choices=['cluster', 'node'], default='cluster', help='Type of system to stress')
     parser.add_argument('--interval', type=int, default=5, help='Interval to poll CPU utilization')
     parser.add_argument('--time', type=int, default=60, help='Duration of the stress test (Seconds)')
     parser.add_argument('--max-pods', type=int, default=2, help='Maximum number of pods to stress')
