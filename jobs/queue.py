@@ -1,6 +1,54 @@
 from queue import Queue
-from .job import Job
 from typing import Optional
+from dataclasses import dataclass, field
+import re
+
+@dataclass
+class Job:
+    cmd: str
+    stressors: dict = field(default_factory=dict)
+    duration: Optional[str] = None
+
+    def __init__(self, cmd: str):
+        self.cmd = cmd
+        self.stressors = self.parse_stressors(cmd)
+        
+    def parse_stressors(self, cmd: str) -> dict:
+        """Parse the stress-ng command options and store them in a dictionary."""
+        args = cmd.split()
+        stressors = {}
+        i = 1               # Start after "stress-ng" command
+        
+        while i < len(args):
+            if args[i] == "--cpu":
+                stressors["cpu"] = int(args[i + 1])
+                i += 2
+            elif args[i] == "--io":
+                stressors["io"] = int(args[i + 1])
+                i += 2
+            elif args[i] == "--vm":
+                stressors["vm"] = int(args[i + 1])
+                i += 2
+            elif args[i] == "--vm-bytes":
+                stressors["vm-bytes"] = args[i + 1]
+                i += 2
+            elif args[i] == "--timeout":
+                stressors["timeout"] = args[i + 1]
+                i += 2
+            else:
+                i += 1
+
+        return stressors
+
+    def to_args_list(self) -> list:
+        args = []
+        for key, value in self.stressors.items():
+            if key == "metrics-brief" and value is True:
+                args.append(f"--{key}")
+            else:
+                args.extend([f"--{key}", str(value)])
+        args.append("--metrics-brief")
+        return args
 
 class JobQueue:
     def __init__(self, queue_file: str):
@@ -12,8 +60,8 @@ class JobQueue:
         try:
             with open(self.queue_file, 'r') as f:
                 for line in f:
-                    # Example: stress-ng --io 4 --vm 5 --vm-bytes 2G --timeout 5m
-                    job = Job(line.strip())
+                    # Convert each line into a Job object and enqueue
+                    job = Job(cmd=line.strip())
                     self.job_queue.put(job)
         except Exception as e:
             print(f"Error loading job queue: {e}")
@@ -22,3 +70,6 @@ class JobQueue:
         if not self.job_queue.empty():
             return self.job_queue.get()
         return None
+
+    def has_next_job(self) -> bool:
+        return not self.job_queue.empty()
