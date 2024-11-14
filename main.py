@@ -1,18 +1,30 @@
+import time 
 from jobs.queue import JobQueue
+from jobs.job import Job
+from controllers.local_controller import LocalController
 
 def main():
-    
-    """ 
-    TODO: move the logic to global controller to read get a job from the queue
     job_queue = JobQueue('./static/jobs.txt')
-    job = job_queue.get_next_job()
-    while job:
-        print(job)
-        job = job_queue.get_next_job()
+    controllerParams = {
+        'target_utilization': 80
+        }
+    controller = LocalController()
+    JOB_INTERVAL = 1   # seconds
+    NODE_NAME = "node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us"
+    
+    while job_queue.has_next_job():
+        # controller check if we could submit new job or skip it
         
-    print("No more jobs in the queue.") 
-    """
-    pass
+        job_args = job_queue.get_next_job().to_args_list()
+        print(job_args)
+        
+        job = Job(NODE_NAME, job_args)
+        job.submit()
+        
+        time.sleep(JOB_INTERVAL)
+        
+    print("No more jobs in the queue.")
+
 
 if __name__ == "__main__":
     main()
