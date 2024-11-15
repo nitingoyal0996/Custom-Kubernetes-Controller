@@ -1,9 +1,8 @@
-# service jobs to kubernetes node
 import time
 from kubernetes import client, config
+import uuid
 
-# TODO: Implement job-id to provide unique pod names
-class Job:
+class JobSubmitter:
     def __init__(self, node_name, job_args):
         self.job_args = job_args
         self.node_name = node_name.split('.')[0]
@@ -11,30 +10,51 @@ class Job:
 
         self.image = "polinux/stress-ng"
         self.namespace = 'jobs'
-        
-        # Load Kubernetes configuration
-        config.load_kube_config()
-        self.apps_v1_api = client.AppsV1Api()
-        self.core_v1_api = client.CoreV1Api()
-        
-        print(f"Node name: {self.node_name}, Worker number: {self.worker_number} started...")
 
-    def create_job_deployment(self):
-        deployment = client.V1Deployment(
-            api_version="apps/v1",
-            kind="Deployment",
+        config.load_kube_config()
+        self.batch_v1_api = client.BatchV1Api()
+        self.core_v1_api = client.CoreV1Api()
+
+        # Create namespace if it doesn't exist
+        self.create_namespace_if_not_exists()
+        
+        # print(f"Node name: {self.node_name}, Worker number: {self.worker_number} started...")
+
+    def create_namespace_if_not_exists(self):
+        try:
+            self.core_v1_api.read_namespace(name=self.namespace)
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                namespace = client.V1Namespace(
+                    metadata=client.V1ObjectMeta(name=self.namespace)
+                )
+                self.core_v1_api.create_namespace(body=namespace)
+                print(f"Created namespace: {self.namespace}")
+
+    def create_job(self):
+        job_id = str(uuid.uuid4())[:8]
+        job_name = f"job-node{self.worker_number}-{job_id}"
+
+        job = client.V1Job(
+            api_version="batch/v1",
+            kind="Job",
             metadata=client.V1ObjectMeta(
-                name=f"job-node{self.worker_number}",
-                namespace=self.namespace
+                name=job_name,
+                namespace=self.namespace,
+                labels={
+                    "app": f"job-node{self.worker_number}",
+                    "job-id": job_id
+                }
             ),
-            spec=client.V1DeploymentSpec(
-                replicas=1,
-                selector=client.V1LabelSelector(
-                    match_labels={"app": f"job-node{self.worker_number}"}
-                ),
+            spec=client.V1JobSpec(
+                ttl_seconds_after_finished=5,  # Add this line
+                backoff_limit=0,
                 template=client.V1PodTemplateSpec(
                     metadata=client.V1ObjectMeta(
-                        labels={"app": f"job-node{self.worker_number}"}
+                        labels={
+                            "app": f"job-node{self.worker_number}",
+                            "job-id": job_id
+                        }
                     ),
                     spec=client.V1PodSpec(
                         containers=[
@@ -44,8 +64,7 @@ class Job:
                                 args=self.job_args
                             )
                         ],
-                        # Add node affinity to ensure pods run on specified node 
-                        # Affects the pod placement on nodes
+                        restart_policy="Never",
                         affinity=client.V1Affinity(
                             node_affinity=client.V1NodeAffinity(
                                 required_during_scheduling_ignored_during_execution=client.V1NodeSelector(
@@ -74,62 +93,14 @@ class Job:
                 )
             )
         )
-        return deployment
-
-    def deploy_job(self):
-        print(f"Deploying job on node {self.node_name}...")
-
-        # Cleanup the environment before starting a new test
-        try:
-            self.apps_v1_api.read_namespaced_deployment(
-                name=f"job-node{self.worker_number}",
-                namespace=self.namespace
-            )
-            self.cleanup()
-        except client.exceptions.ApiException as e:
-            if e.status != 404:
-                raise e
-
-        # Deploy
-        deployment = self.create_stress_ng_deployment()
-        self.apps_v1_api.create_namespaced_deployment(
-            body=deployment, namespace=self.namespace
-        )
-        # Scale
-        self.apps_v1_api.patch_namespaced_deployment_scale(
-            name=f"job-node{self.worker_number}",
-            namespace=self.namespace,
-            body=client.V1Scale(spec=client.V1ScaleSpec(replicas=1))
-        )
-
-    def wait_for_pods_ready(self):
-        print("Waiting for pods to be ready...")
-        max_wait = 60
-        start_time = time.time()
-        
-        while time.time() - start_time < max_wait:
-            pods = self.core_v1_api.list_namespaced_pod(
-                namespace=self.namespace, 
-                label_selector=f"app=stress-ng-node{self.worker_number}"
-            )
-            
-            running_pods = len([p for p in pods.items if p.status.phase == "Running"])
-            
-            if running_pods == 1:
-                print(f"Job is submitted to {self.node_name}")
-                return True
-            
-            time.sleep(2)
-        
-        print(f"Timeout waiting for pods to be ready")
-        return False
+        return job
 
     def submit(self):
-        try:
-            print(f"Starting job {self.job_args}")
-            self.deploy_stress_ng_pods()
-            if not self.wait_for_pods_ready():
-                print("Failed to start pods, cleaning up...")
-                return []
-        except:
-            print("An error occurred during the experiment")
+        print(f"Submitting job: {self.job_args}")
+        job = self.create_job()
+        self.batch_v1_api.create_namespaced_job(namespace=self.namespace, body=job)
+
+# Usage example
+if __name__ == "__main__":
+    job_submitter = JobSubmitter("node1", ["stress-ng", "--cpu", "2", "--timeout", "60s"])
+    job_submitter.submit()
