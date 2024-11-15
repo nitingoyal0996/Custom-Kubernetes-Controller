@@ -1,3 +1,6 @@
-stress-ng --cpu 2 --io 4 --vm 5 --vm-bytes 2G --timeout 5m
-stress-ng --io 4 --vm 5 --vm-bytes 2G --timeout 2m
-stress-ng --io 4 --vm 5 --vm-bytes 2G --timeout 1m
+stress-ng --cpu 6 --timeout 105s
+stress-ng --cpu 5 --timeout 120s
+stress-ng --cpu 4 --timeout 135s
+stress-ng --cpu 3 --timeout 150s
+stress-ng --cpu 2 --timeout 165s
+stress-ng --cpu 1 --timeout 180s
