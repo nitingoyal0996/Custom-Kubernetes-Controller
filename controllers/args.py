@@ -10,7 +10,6 @@ class Params():
     Kp: float
     Ki: float
     node_name: str
-    data_path: str
     polling_interval: int = 15
 
     def __getattr__(self, name: str) -> Any:
