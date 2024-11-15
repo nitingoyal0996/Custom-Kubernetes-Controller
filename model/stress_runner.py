@@ -22,21 +22,25 @@ class StressRunner:
         
     def run_test(self, StressClass, pods: List[int], duration: int = 300, interval: int = 5, stressors=2, node_name='all') -> Dict:
         results = []
-        for pod_count in range(1, pods + 1):
-            print(f"Running stress test with {pod_count} pods...")
-            stressor = StressClass(
-                pods=pod_count,
-                duration=duration,
-                poll_every=interval,
-                node_name=node_name,
-                stressors=stressors
-            )
-            cpu_utils = stressor.run()
-            cpu_utils = np.array([sum(cpu_percent) / len(cpu_percent) for cpu_percent in cpu_utils.values()])
-            results.append((pod_count, cpu_utils.mean()))
-            time.sleep(30)
-        self.write(f'{self.output_dir}/{stressor.type}_data.csv', results)
-        print(f"\nAll results saved in: data/")
+        try:
+            for pod_count in range(1, pods + 1):
+                print(f"Running stress test with {pod_count} pods...")
+                stressor = StressClass(
+                    pods=pod_count,
+                    duration=duration,
+                    poll_every=interval,
+                    node_name=node_name,
+                    stressors=stressors
+                )
+                cpu_utils = stressor.run()
+                cpu_utils = np.array([sum(cpu_percent) / len(cpu_percent) for cpu_percent in cpu_utils.values()])
+                results.append((pod_count, cpu_utils.mean()))
+                time.sleep(30)
+        except KeyboardInterrupt:
+            print('Stress tests stopped by the user...')
+        finally:
+            self.write(f'{self.output_dir}/{stressor.type}_data.csv', results)
+            print(f"\nAll results saved in: data/")
 
 def main():
     parser = argparse.ArgumentParser(description='Run stress tests for the cluster or just a node')
