@@ -1,7 +1,7 @@
 import math
 import argparse
 
-def design_pi_controller(settling_time, max_overshoot, system_params):
+def design_pi_controller(settling_time, max_overshoot, a, b):
     """
     Calculate r (pole radius)
     - r = e^(-4/settling_time)
@@ -29,8 +29,6 @@ def design_pi_controller(settling_time, max_overshoot, system_params):
     theta = math.pi * (math.log(r) / math.log(max_overshoot/100))
 
     # b: System gain, a: System pole
-    b = system_params.get('b', 1)
-    a = system_params.get('a', 0.5)
     
     # Ki Calculation
     # Derive from z coefficient matching
@@ -49,30 +47,19 @@ def design_pi_controller(settling_time, max_overshoot, system_params):
 
 
 def main():
-    # defaults
-    system_params = {
-        'b': 10.43,     # Adjustable system gain
-        'a': -0.001     # Adjustable system pole
-    }
-
     args = argparse.ArgumentParser("Submit controller parameters - a, b, settling time, max overshoot")
 
-    args.add_argument("--a", type=float, default=system_params['a'], help="System pole")
-    args.add_argument("--b", type=float, default=system_params['b'], help="System gain")
-    args.add_argument("--settling_time", type=float, default=2, help="Settling time in seconds")
-    args.add_argument("--max_overshoot", type=float, default=5, help="Max overshoot in %")
+    args.add_argument("--a", type=float, default=1, help="System pole")
+    args.add_argument("--b", type=float, default=0.25, help="System gain")
+    args.add_argument("--settling-time", type=float, default=2, help="Settling time in seconds")
+    args.add_argument("--max-overshoot", type=float, default=5, help="Max overshoot in %")
+    args = args.parse_args()
 
     Kp, Ki = design_pi_controller(args.settling_time, args.max_overshoot, args.a, args.b)
 
-    print("System Parameters:")
-    print(f"System Gain (a): {args.a}")
-    print(f"System Pole (b): {args.b}")
-
-    print("PI Controller Design Results:")
-    print(f"Settling Time: {args.settling_time}")
-    print(f"Max Overshoot: {args.max_overshoot}%")
-    print(f"Kp = {Kp:.4f}")
-    print(f"Ki = {Ki:.4f}")
+    print(f"Kp,{Kp:.4f}")
+    print(f"Ki,{Ki:.4f}")
 
 if __name__ == "__main__":
+    # python ./design_controller.py --a 0.8709 --b -0.6688 --settling-time 2 --max-overshoot 5 > ./data/control.csv
     main()
