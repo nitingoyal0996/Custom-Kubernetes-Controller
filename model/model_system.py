@@ -12,9 +12,9 @@ def load_data_from_csv(file_path):
     return u_raw, y_raw
 
 # Text book calculations
-def normalize_data(u_raw, y_raw):
-    u_normalized = u_raw - np.average(u_raw[:-1])
-    y_normalized = y_raw - np.average(y_raw[1:])
+def normalize_data(u_raw, y_raw, u_operating_point=8, y_operating_point=80):
+    u_normalized = u_raw - u_operating_point
+    y_normalized = y_raw - y_operating_point
     
     return u_normalized, y_normalized
 
@@ -83,26 +83,33 @@ def plot_predictions(y_true, y_pred, filename):
 
 def main():
     parser = argparse.ArgumentParser(description='Analyse results for Node or Cluster')
-    parser.add_argument('--filename', default='Node_data', help='Type of system to stressed')
+    parser.add_argument('--filename', default='Node_data_node_1_11_14', help='Type of system to stressed')
     args = parser.parse_args()
     csv_file_path = f'./data/{args.filename}.csv'
 
     # Analyze system
     u_raw, y_raw = load_data_from_csv(csv_file_path)
-    u_normalized, y_normalized = normalize_data(u_raw, y_raw)
+    u_operating_point =  8 # np.average(u_raw[:-1])
+    y_operating_point = 80 # np.average(y_raw[1:]) 
+    print('Operating points:', u_operating_point, y_operating_point)
+    u_normalized, y_normalized = normalize_data(u_raw, y_raw, u_operating_point, y_operating_point)
 
     S1, S2, S3, S4, S5 = compute_sums(u_normalized, y_normalized)
     a, b = least_squares_coefficients(S1, S2, S3, S4, S5)
-    print(f"Coefficient a: {a}")
-    print(f"Coefficient b: {b}")
+    print(f"a,{a}")
+    print(f"b,{b}")
 
     y_pred = predict_next_output(a, b, u_normalized[:-1], y_normalized[:-1])
 
     r2_score = calculate_r2(y_normalized[1:], y_pred)
-    print(f"R^2 score: {r2_score}")
+    print(f"R2,{r2_score}")
 
-    plot_predictions(y_raw[1:], y_pred+np.average(y_raw[1:]), args.filename)
-    plot_utilization(u_raw[1:], y_pred+np.average(y_raw[1:]), args.filename)
+    plot_predictions(y_raw[1:], y_pred+y_operating_point, args.filename)
+    plot_utilization(u_raw[1:], y_pred+y_operating_point, args.filename)
 
 if __name__ == '__main__':
+    args = argparse.ArgumentParser(description='Analyse results for Node or Cluster')
+    args.add_argument('--filename', help='Type of system to stressed')
+    # python ./model_system.py --filename 'Node_data_node_1_11_14' > ./data/model.csv
+    # cat ./data/model.csv
     main()
