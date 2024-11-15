@@ -50,8 +50,8 @@ class NodeStressor:
                                     "--cpu", str(self.cpu_stressor),
                                     "--io", "2",
                                     "--vm", "1",
-                                    "--vm-bytes", "4G",
-                                    "--timeout", str(self.duration + 30),  # Add buffer time
+                                    "--vm-bytes", "1G",
+                                    "--timeout", str(self.duration),  # Add buffer time
                                     "--metrics-brief"
                                 ]
                             )
