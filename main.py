@@ -1,29 +1,30 @@
 import time 
-from jobs.queue import JobQueue
-from jobs.job import Job
+from typing import cast
+from controllers.args import Params
 from controllers.local_controller import LocalController
+from jobs.queue import JobQueue
+from jobs.job import JobSubmitter as Job
 
 def main():
-    job_queue = JobQueue('./static/jobs.txt')
-    controllerParams = {
-        'target_utilization': 80
+    # JOB_INTERVAL = 15   # seconds
+    try:
+        job_queue = JobQueue('./static/jobs.txt')
+        controllerParams = {
+            'a': 0.8709,
+            'b': -0.6688,
+            'Kp': 0.094,
+            'Ki': 0.006,
+            'polling_interval': 15,
+            'node_name': "node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us"
         }
-    controller = LocalController()
-    JOB_INTERVAL = 1   # seconds
-    NODE_NAME = "node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us"
-    
-    while job_queue.has_next_job():
-        # controller check if we could submit new job or skip it
+        params = cast(Params, controllerParams)
         
-        job_args = job_queue.get_next_job().to_args_list()
-        print(job_args)
-        
-        job = Job(NODE_NAME, job_args)
-        job.submit()
-        
-        time.sleep(JOB_INTERVAL)
-        
-    print("No more jobs in the queue.")
+        controller = LocalController(params)
+        controller.run(job_queue)
+
+        print("No more jobs in the queue.")
+    except KeyboardInterrupt:
+        print("Controller stopped.")
 
 
 if __name__ == "__main__":
