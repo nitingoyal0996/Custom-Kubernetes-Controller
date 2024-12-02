@@ -1,4 +1,4 @@
-import time
+import logging
 from kubernetes import client, config
 import uuid
 
@@ -15,10 +15,8 @@ class JobSubmitter:
         self.batch_v1_api = client.BatchV1Api()
         self.core_v1_api = client.CoreV1Api()
 
-        # Create namespace if it doesn't exist
         self.create_namespace_if_not_exists()
-        
-        # print(f"Node name: {self.node_name}, Worker number: {self.worker_number} started...")
+
 
     def create_namespace_if_not_exists(self):
         try:
@@ -47,7 +45,7 @@ class JobSubmitter:
                 }
             ),
             spec=client.V1JobSpec(
-                ttl_seconds_after_finished=5,  # Add this line
+                ttl_seconds_after_finished=5,
                 backoff_limit=0,
                 template=client.V1PodTemplateSpec(
                     metadata=client.V1ObjectMeta(
@@ -96,7 +94,7 @@ class JobSubmitter:
         return job
 
     def submit(self):
-        print(f"Submitting job: {self.job_args}")
+        logging.info(f"Job Queue: Submitting job: {self.job_args}")
         job = self.create_job()
         self.batch_v1_api.create_namespaced_job(namespace=self.namespace, body=job)
 

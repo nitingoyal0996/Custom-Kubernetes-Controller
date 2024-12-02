@@ -1,0 +1,39 @@
+===========================================
+Task 1
+===========================================
+
+
+
+===========================================
+Task 2
+===========================================
+
+Scenario 1
+stress-ng --cpu 2 --timeout 485s
+stress-ng --cpu 1 --timeout 370s
+stress-ng --cpu 1 --timeout 355s
+stress-ng --cpu 4 --timeout 340s
+stress-ng --cpu 1 --timeout 325s
+stress-ng --cpu 3 --timeout 310s
+stress-ng --cpu 1 --timeout 295s
+stress-ng --cpu 2 --timeout 120s
+stress-ng --cpu 1 --timeout 125s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 4 --timeout 125s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 3 --timeout 125s
+
+Scenario 2
+stress-ng --cpu 2 --timeout 600s
+stress-ng --cpu 1 --timeout 600s
+stress-ng --cpu 1 --timeout 600s
+stress-ng --cpu 4 --timeout 400s
+stress-ng --cpu 1 --timeout 400s
+stress-ng --cpu 3 --timeout 305s
+stress-ng --cpu 1 --timeout 305s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 1 --timeout 120s
+stress-ng --cpu 1 --timeout 120s

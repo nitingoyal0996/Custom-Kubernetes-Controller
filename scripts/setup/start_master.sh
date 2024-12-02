@@ -32,11 +32,12 @@ else
 fi
 
 # Configure kubeconfig
-
 mkdir -p "$HOME"/.kube
 sudo cp -i /etc/kubernetes/admin.conf "$HOME"/.kube/config
 sudo chown "$(id -u)":"$(id -g)" "$HOME"/.kube/config
 
 # Install Claico Network Plugin Network 
-
 kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+
+# metric server
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml

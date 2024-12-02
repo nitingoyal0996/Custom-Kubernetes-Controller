@@ -1,27 +1,31 @@
-import time 
-from typing import cast
-from controllers.args import Params
-from controllers.local_controller import LocalController
+import logging
+from local_controller import LocalController
 from jobs.queue import JobQueue
-from jobs.job import JobSubmitter as Job
+from middleware import Middleware
+from global_controller import GlobalController
 
 def main():
-    # JOB_INTERVAL = 15   # seconds
+
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
     try:
         job_queue = JobQueue('./static/jobs.txt')
-        controllerParams = {
-            'a': 0.8709,
-            'b': -0.6688,
-            'Kp': 0.094,
-            'Ki': 0.006,
-            'polling_interval': 15,
-            'node_name': "node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us"
-        }
-        params = cast(Params, controllerParams)
-        
-        controller = LocalController(params)
-        controller.run(job_queue)
 
+        # node 2
+        # controllerParams = {
+        #     'a': 0.8709,
+        #     'b': -0.6688,
+        #     'Kp': 0.8,
+        #     'Ki': 0.006,
+        #     'node_name': "node2.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us"
+        # }
+        controller1 = LocalController("node0")
+        controller2 = LocalController("node1.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us")
+        controller3 = LocalController("node2.goyal-project.ufl-eel6871-fa24-pg0.utah.cloudlab.us")
+        middleware = Middleware(controller1, controller2, controller3)
+        globalController = GlobalController(middleware)
+
+        globalController.run(job_queue)
         print("No more jobs in the queue.")
     except KeyboardInterrupt:
         print("Controller stopped.")
