@@ -1,14 +1,27 @@
 ===========================================
-Task 1
+Task 1 - I - increasing pods
 ===========================================
-
+stress-ng --cpu 6 --timeout 105s
+stress-ng --cpu 5 --timeout 120s
+stress-ng --cpu 4 --timeout 135s
+stress-ng --cpu 3 --timeout 150s
+stress-ng --cpu 2 --timeout 165s
+stress-ng --cpu 1 --timeout 180s
 
 
 ===========================================
-Task 2
+Task 1 - II - decreasing pods
 ===========================================
+stress-ng --cpu 1 --timeout 180s
+stress-ng --cpu 2 --timeout 165s
+stress-ng --cpu 3 --timeout 150s
+stress-ng --cpu 4 --timeout 135s
+stress-ng --cpu 5 --timeout 120s
+stress-ng --cpu 6 --timeout 105s
 
-Scenario 1
+===========================================
+Task 2 - Scenario 1
+===========================================
 stress-ng --cpu 2 --timeout 485s
 stress-ng --cpu 1 --timeout 370s
 stress-ng --cpu 1 --timeout 355s
@@ -23,7 +36,9 @@ stress-ng --cpu 4 --timeout 125s
 stress-ng --cpu 1 --timeout 120s
 stress-ng --cpu 3 --timeout 125s
 
-Scenario 2
+===========================================
+Task 2 - Scenario 2
+===========================================
 stress-ng --cpu 2 --timeout 600s
 stress-ng --cpu 1 --timeout 600s
 stress-ng --cpu 1 --timeout 600s
