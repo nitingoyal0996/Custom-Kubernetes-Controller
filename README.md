@@ -21,7 +21,7 @@ It implements custom controllers for Kubernetes to automatically scale resources
 - Real-world challenges of horizontal scaling, workload distribution, and monitoring.
 
 
-## Architecture
+## High-Level Architecture
 
 ```mermaid
 flowchart TD
@@ -46,11 +46,109 @@ flowchart TD
     end
 ```
 
-- **Job Queue**: Manages incoming stress jobs and feeds them to the global controller.
-- **Global Controller**: Makes scaling decisions and assigns jobs to nodes.
-- **Middleware**: Facilitates communication between global and local controllers.
-- **Local Controllers**: Manage jobs and resources on each node, report node status.
-- **Pods/Jobs**: Actual stress jobs running on individual nodes.
+
+## UML
+
+```mermaid
+classDiagram
+    class Middleware {
+        +int target_cluster_util
+        +int MAX_CLUSTER_PODS
+        +int current_node_index
+        +int node_added_before
+        +int failure_cool_down
+        +dict nodes
+        +dict cluster_metrics
+        +core_v1_api
+        +__init__(controller_1, controller_2, controller_3)
+        +refresh_active_nodes()
+        +update_local_states()
+        +avg_cluster_cpu_capacity()
+        +check_metrics_availability()
+        +add_node(node_name)
+        +remove_node(node_name)
+        +find_inactive_nodes()
+        +determine_next_node()
+        +determine_node_to_remove()
+        +get_total_pods()
+        +cleanup_node(node_name)
+        +cleanup_cluster()
+        +save_metrics()
+    }
+
+    class LocalController {
+        +state
+        +monitor : MonitorNode
+        +update_state()
+        ...
+    }
+
+    class GlobalController {
+        +middleware : Middleware
+        +DESIRED_CPU_UTILIZATION_RANGE
+        +OPERATING_POINT
+        +SCALE_DOWN_THRESHOLD
+        +polling_interval
+        +LOW_CYCLE_COUNT
+        +low_cluster_util_count_down
+        +run(queue)
+        ...
+    }
+
+    class MonitorNode {
+        +current_util
+        +get_running_pod_count()
+        +has_pod_capacity(max_pods)
+        ...
+    }
+
+    class Job {
+        +str cmd
+        +dict stressors
+        +str duration
+        +__init__(cmd)
+        +parse_stressors(cmd)
+        +to_args_list()
+    }
+
+    class JobQueue {
+        +str queue_file
+        +Queue job_queue
+        +__init__(queue_file)
+        +load_jobs()
+        +get_next_job()
+        +has_next_job()
+    }
+
+    class JobSubmitter {
+        +str node_name
+        +str worker_number
+        +str image
+        +str namespace
+        +BatchV1Api batch_v1_api
+        +CoreV1Api core_v1_api
+        +__init__(node_name, job_args)
+        +create_namespace_if_not_exists()
+        +create_job()
+        +submit()
+    }
+
+    Middleware "1" o-- "1..*" LocalController : manages
+    Middleware "1" o-- "1" GlobalController : used by
+    LocalController "1" o-- "1" MonitorNode : monitors
+    GlobalController "1" o-- "1" JobQueue : uses
+    JobQueue "1" o-- "many" Job : contains
+    GlobalController "1" o-- "many" JobSubmitter : creates
+```
+
+**Entities:**
+- **LocalController**: Manages a node, monitors CPU, and decides pod scaling.
+- **MonitorNode**: Fetches node metrics (like CPU usage).
+- **GlobalController**: Top-level manager for job assignment and scaling.
+- **Middleware**: Handles communication between global and local controllers.
+- **JobQueue**: Stores pending jobs.
+- **Job**: Represents a workload or stress job.
+
 
 ## Usage
 
@@ -75,33 +173,3 @@ flowchart TD
    ```
 5. Define stress jobs in `static/jobs.txt`. The system will manage scaling and assignment automatically.
 
-
-Here is the directory structure - 
-
-- **model**: Directory provides a way to run stressors and model individual nodes.
-- **jobs**: Manages the job queue
-- **middleware.py** - Manages the job assignments
-- **monitor.py** - Applies monitoring to each node
-
-```bash
-- model / 
-    - stressors /
-    - stress_runner.py
-    - model_system.py
-    - design_controller.py
-- scripts/setup
-    - install.sh
-    - start_master.sh
-    - start_worker.sh
-- jobs /
-    - queue.py
-    - job.py
-- static /
-    - jobs.txt
-- global_controller.py
-- middleware.py
-- local_controller.py
-- monitor.py
-- metric-config.yaml
-- main.py
-```
